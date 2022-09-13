@@ -19,14 +19,26 @@ Get-Credential -username administrator@vsphere.local | set-secret -name vCenterC
 
 #>
 
+<#
+This script will monitor an array of non-UPS devices to identify a power outage if all of the monitored devices fail.
+Once a power failure is detected the script will tag the powered on VMs and gracefully shutdown any vms with tools and
+stop any VMs without tools.  Finally it will gracefully shutdown the core infrastructure VMs identified in a specifed 
+Core VM DRS group.  This group should be setup to have afinity that the core vms should be running on a specific host.
+The host should be set to power on following power interruption.  The host should have autostart configured for the 
+core VMs including the VM that runs this script.  Future releases may further automate the DRS rules and esxi autostart
+configuration.  Once the scripting VM and vcenter are restarted the script will power back on any VMs that were taged 
+before shutdown.
+#>
+
+#TODO: setup vm group and host group 
+#TODO: setup afinity rule in code
+#TODO: setup autostart order of critical vms on target host
+
 function Get-TimeStamp {
     
     return "[{0:MM/dd/yy} {0:HH:mm:ss}]" -f (Get-Date)
     
 }
-#TODO: setup vm host group
-#TODO: setup afinity rule in code
-#TODO: setup restat order on target host
 
 $domainName = "far-away.galaxy"
 $vCenterFQDN = "vcva." + $domainName
@@ -35,6 +47,7 @@ $CoreVMGroupName = "Critical VMs"
 $SecondsToWaitForShutdown = 90
 
 $credential = Get-Secret -name vCenterCreds
+#TODO: add a loop to wait for vCenter to become ready?
 $vCenterConnection = connect-viserver -Server $vCenterFQDN -Credential $credential
 
 #If DesiredPowerState Tag Category doesn't exist then create it
