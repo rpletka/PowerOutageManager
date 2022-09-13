@@ -25,13 +25,14 @@ $NonUPSDevicesToCheck = @("192.168.1.11", "192.168.1.75", "192.168.2.65")
 $CoreVMGroupName = "Critical VMs"
 $SecondsToWaitForShutdown = 90
 $vCenterRetries=10
+$AllDevicesUpLogFrequency=15 #Minutes
 
 $credential = Get-Secret -name vCenterCreds
 $maxTries=$vCenterRetries
 while ($maxTries -gt 0) {
     $Error.Clear()
     $vCenterConnection = connect-viserver -Server $vCenterFQDN -Credential $credential -ErrorAction SilentlyContinue
-    if ($null -eq $Error) {
+    if ($Error.Count -eq 0) {
         break;
     } else {
         Write-Host $Error
@@ -42,6 +43,9 @@ while ($maxTries -gt 0) {
 if ($null -eq $vCenterConnection) {
     Write-Host "$(Get-TimeStamp) Unable to reach $vCenterFQDN after $vCenterRetries Tries. Terminating script."
     Exit
+} else {
+    $Message='Successfull connection to {0} after {1} retries.' -f  $vCenterFQDN, ($vCenterRetries - $maxTries).ToString()
+    Write-Host "$(Get-TimeStamp) $Message "
 }
 
 #If DesiredPowerState Tag Category doesn't exist then create it
@@ -71,15 +75,25 @@ Foreach ($VM in $VMsToPowerON) {
     Start-VM $VM -Confirm:$False -ErrorAction SilentlyContinue
 }
 
-#Check array of non-ups devices.  If all of them are down for 4 successive pings (3 devices with 4 pings each with a 5 second timeout will require 60 seconds of downtime before triggering shutdown)
+#Check array of non-UPS devices.  If all of them are down for 4 successive pings (3 devices with 4 pings each with a 5 second timeout will require 60 seconds of downtime before triggering shutdown)
 $DevicesDown=0
+$start_time=(Get-Date).AddMinutes(-1 * $AllDevicesUpLogFrequency) #Force first successful log
 while ($DevicesDown -ne $NonUPSDevicesToCheck.Count) {
-    
     $NonUPSDeviceResults=Test-Connection -Quiet -TimeoutSeconds 5 -Count 4 -TargetName $NonUPSDevicesToCheck -ErrorAction SilentlyContinue
+    #Device will only be marked down if all pings fail for a given test
     $DevicesDown=$NonUPSDeviceResults | group |where {$_.Name -eq $False} |select-object -ExpandProperty Count 
     if ($null -eq $DevicesDown) {$DevicesDown=0}
     $DevicesUp=$NonUPSDevicesToCheck.Count - $DevicesDown
-    Write-Host "$(Get-TimeStamp) There were $DevicesUp non-ups powered devices up and $DevicesDown devices Down."
+    if ($DevicesDown -gt 0) {
+        Write-Host "$(Get-TimeStamp) There were $DevicesUp non-UPS powered devices up and $DevicesDown devices Down."
+        $start_time=Get-Date
+    } else {
+        if (((Get-Date)-$start_time).TotalMinutes -gt $AllDevicesUpLogFrequency) {
+            Write-Host "$(Get-TimeStamp) There were $DevicesUp non-UPS powered devices up and $DevicesDown devices Down. Successfull messages will be supressed for $AllDevicesUpLogFrequency minutes. "
+            $start_time=Get-Date
+        }
+        Start-Sleep -Seconds 15
+    } 
 }
 Write-Host "$(Get-TimeStamp) Power failure detected!"
  
