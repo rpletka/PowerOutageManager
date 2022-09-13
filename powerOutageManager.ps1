@@ -64,7 +64,7 @@ while ($DevicesDown -ne $NonUPSDevicesToCheck.Count) {
     $DevicesDown=$NonUPSDeviceResults | group |where {$_.Name -eq $False} |select-object -ExpandProperty Count 
     if ($null -eq $DevicesDown) {$DevicesDown=0}
     $DevicesUp=$NonUPSDevicesToCheck.Count - $DevicesDown
-    Write-Host "$(Get-TimeStamp) There was $DevicesUp devices up and $DevicesDown devices Down."
+    Write-Host "$(Get-TimeStamp) There were $DevicesUp non-ups powered devices up and $DevicesDown devices Down."
 }
 Write-Host "$(Get-TimeStamp) Power failure detected!"
  
