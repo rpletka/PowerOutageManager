@@ -20,14 +20,13 @@ function Get-TimeStamp {
 }
 
 $domainName = "far-away.galaxy"
-$vCenterFQDN = "vcva2." + $domainName
+$vCenterFQDN = "vcva." + $domainName
 $NonUPSDevicesToCheck = @("192.168.1.11", "192.168.1.75", "192.168.2.65")
 $CoreVMGroupName = "Critical VMs"
 $SecondsToWaitForShutdown = 90
 $vCenterRetries=10
 
 $credential = Get-Secret -name vCenterCreds
-#TODO: add a loop to wait for vCenter to become ready?
 $maxTries=$vCenterRetries
 while ($maxTries -gt 0) {
     $Error.Clear()
