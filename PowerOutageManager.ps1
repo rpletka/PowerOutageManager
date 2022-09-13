@@ -1,33 +1,12 @@
-<# Onetime setup commands
-
-Set-ExecutionPolicy -ExecutionPolicy Undefined -Scope Process -ErrorAction SilentlyContinue
-Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted 
-Install-Module Microsoft.PowerShell.SecretManagement, Microsoft.PowerShell.SecretStore
-Install-Module -Name VMware.PowerCLI -Scope CurrentUser
-Set-PowerCLIConfiguration -Scope User -ParticipateInCEIP $false -Confirm:$false
-
-Set-SecretStoreConfiguration -Authentication None -Confirm:$false
-#If LocalVault doesn't exist create Local Vault
-$Vault=Get-SecretVault LocalStore -ErrorAction SilentlyContinue
-if ( $Vault.IsDefault ) {
-    Write-Host "LocalStore Vault exists.  Skipping..."
-} else {
-    Write-Host "Creating LocalStore Vault"
-    Register-SecretVault -Name LocalStore -ModuleName Microsoft.PowerShell.SecretStore  -DefaultVault
-}
-Get-Credential -username administrator@vsphere.local | set-secret -name vCenterCreds
-
-#>
-
 <#
 This script will monitor an array of non-UPS devices to identify a power outage if all of the monitored devices fail.
 Once a power failure is detected the script will tag the powered on VMs and gracefully shutdown any vms with tools and
 stop any VMs without tools.  Finally it will gracefully shutdown the core infrastructure VMs identified in a specifed 
 Core VM DRS group.  This group should be setup to have afinity that the core vms should be running on a specific host.
 The host should be set to power on following power interruption.  The host should have autostart configured for the 
-core VMs including the VM that runs this script.  Future releases may further automate the DRS rules and esxi autostart
-configuration.  Once the scripting VM and vcenter are restarted the script will power back on any VMs that were taged 
-before shutdown.
+core VMs including the VM that runs this script.  Once the scripting VM and vcenter are restarted the script will power
+back on any VMs that were taged before shutdown.  Future releases may further automate the DRS rules and esxi autostart
+configuration.
 #>
 
 #TODO: setup vm group and host group 
@@ -96,7 +75,7 @@ $CoreVMs=get-vm|Where {($_.PowerState -eq "PoweredOn") -and ($_.Name -in $CoreVM
 #Clear out tags from previous assignment
 Get-TagAssignment -Tag "PoweredOn"|remove-tagassignment -Confirm:$False
 
-$start_time=Get-Datejkk
+$start_time=Get-Date
 #Mark all the currently powered on VMs with VMware tools as PoweredOn then Shutdown Guest
 $PoweredOnVMs=get-vm|Where {($_.PowerState -eq "PoweredOn") -and ($_.ExtensionData.Guest.ToolsStatus -ne "toolsNotRunning") -and ($_.Name -notin $CoreVMsList.Member.Name) }
 Foreach ($VM in $PoweredOnVMs) {
