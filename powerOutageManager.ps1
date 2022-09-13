@@ -20,14 +20,30 @@ function Get-TimeStamp {
 }
 
 $domainName = "far-away.galaxy"
-$vCenterFQDN = "vcva." + $domainName
+$vCenterFQDN = "vcva2." + $domainName
 $NonUPSDevicesToCheck = @("192.168.1.11", "192.168.1.75", "192.168.2.65")
 $CoreVMGroupName = "Critical VMs"
 $SecondsToWaitForShutdown = 90
+$vCenterRetries=10
 
 $credential = Get-Secret -name vCenterCreds
 #TODO: add a loop to wait for vCenter to become ready?
-$vCenterConnection = connect-viserver -Server $vCenterFQDN -Credential $credential
+$maxTries=$vCenterRetries
+while ($maxTries -gt 0) {
+    $Error.Clear()
+    $vCenterConnection = connect-viserver -Server $vCenterFQDN -Credential $credential -ErrorAction SilentlyContinue
+    if ($null -eq $Error) {
+        break;
+    } else {
+        Write-Host $Error
+        start-sleep -Seconds 60
+        $MaxTries--
+    }
+}
+if ($null -eq $vCenterConnection) {
+    Write-Host "$(Get-TimeStamp) Unable to reach $vCenterFQDN after $vCenterRetries Tries. Terminating script."
+    Exit
+}
 
 #If DesiredPowerState Tag Category doesn't exist then create it
 $TagCategoryName = "DesiredPowerState"
